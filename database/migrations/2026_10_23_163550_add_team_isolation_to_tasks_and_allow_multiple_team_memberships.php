@@ -33,11 +33,12 @@ return new class extends Migration
             );
         }
 
-        if (! Schema::hasColumn('tasks', 'team_id')) {
-            Schema::table('tasks', function (Blueprint $table) {
-                $table->unsignedBigInteger('team_id')->nullable();
-            });
-        }
+        // Добавляем колонку team_id, если её еще нет
+        Schema::table('tasks', function (Blueprint $table) {
+            if (!Schema::hasColumn('tasks', 'team_id')) {
+                $table->foreignId('team_id')->nullable()->constrained('teams')->onDelete('cascade');
+            }
+        });
 
         $teamIdsByUser = DB::table('team_user')->pluck('team_id', 'user_id');
 
@@ -46,19 +47,28 @@ return new class extends Migration
             ->orderBy('id')
             ->chunkById(500, function ($tasks) use ($teamIdsByUser): void {
                 foreach ($tasks as $task) {
-                    DB::table('tasks')
-                        ->where('id', $task->id)
-                        ->update(['team_id' => $teamIdsByUser[$task->created_by]]);
+                    if (isset($teamIdsByUser[$task->created_by])) {
+                        DB::table('tasks')
+                            ->where('id', $task->id)
+                            ->update(['team_id' => $teamIdsByUser[$task->created_by]]);
+                    }
                 }
             });
 
-        Schema::table('tasks', function (Blueprint $table) {
-            $table->unsignedBigInteger('team_id')->nullable(false)->change();
-            $table->foreign('team_id')->references('id')->on('teams')->cascadeOnDelete();
-        });
-
+        // Безопасно удаляем внешний ключ и индекс в таблице team_user
         Schema::table('team_user', function (Blueprint $table) {
-            $table->dropUnique('team_user_user_id_unique');
+            try {
+                // Сначала пробуем сбросить возможный внешний ключ на user_id
+                $table->dropForeign(['user_id']);
+            } catch (\Exception $e) {
+                // Если внешнего ключа не было, пропускаем
+            }
+
+            try {
+                $table->dropUnique('team_user_user_id_unique');
+            } catch (\Exception $e) {
+                // Если индекс уже удален, пропускаем
+            }
         });
     }
 
@@ -81,12 +91,18 @@ return new class extends Migration
         }
 
         Schema::table('tasks', function (Blueprint $table) {
-            $table->dropForeign(['team_id']);
-            $table->dropColumn('team_id');
+            if (Schema::hasColumn('tasks', 'team_id')) {
+                $table->dropForeign(['team_id']);
+                $table->dropColumn('team_id');
+            }
         });
 
         Schema::table('team_user', function (Blueprint $table) {
-            $table->unique('user_id');
+            try {
+                $table->unique('user_id');
+            } catch (\Exception $e) {
+                // Пропускаем, если индекс уже существует
+            }
         });
     }
 };
