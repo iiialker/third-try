@@ -8,10 +8,28 @@
         <a href="{{ route('welcome') }}" class="inline-flex items-center gap-2.5 font-display text-lg font-extrabold tracking-tight text-stone-800"><span class="grid h-8 w-8 place-items-center rounded-lg bg-forest text-white">✓</span>taskflow</a>
 
         <section class="mt-10 text-center">
-            <p class="text-[10px] font-bold tracking-[.18em] text-leaf">ONE LAST STEP</p>
-            <h1 class="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Welcome, {{ auth()->user()->name }}.</h1>
-            <p class="mt-3 text-sm text-stone-500">Create a team or join one to get started.</p>
+            <p class="text-[10px] font-bold tracking-[.18em] text-leaf">{{ $userTeams->isEmpty() ? 'ONE LAST STEP' : 'YOUR WORKSPACES' }}</p>
+            <h1 class="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{{ $userTeams->isEmpty() ? 'Welcome, '.auth()->user()->name.'.' : 'Manage your teams.' }}</h1>
+            <p class="mt-3 text-sm text-stone-500">{{ $userTeams->isEmpty() ? 'Create a team or join one to get started.' : 'Switch your active team, create a team, or join another workspace.' }}</p>
         </section>
+
+        @if ($userTeams->isNotEmpty())
+            <section class="mt-8 rounded-lg border border-stone-200 bg-white p-5 sm:p-7">
+                <h2 class="font-display text-lg font-bold">Teams you belong to</h2>
+                <div class="mt-4 flex flex-wrap gap-2">
+                    @foreach ($userTeams as $userTeam)
+                        <form method="POST" action="{{ route('teams.activate') }}">
+                            @csrf
+                            <input type="hidden" name="team_id" value="{{ $userTeam->id }}">
+                            <button class="rounded-md px-4 py-2.5 text-xs font-semibold {{ (int) session('active_team_id') === $userTeam->id ? 'bg-forest text-white' : 'border border-stone-200 text-forest hover:bg-green-50' }}">
+                                {{ $userTeam->name }}{{ (int) session('active_team_id') === $userTeam->id ? ' · Active' : '' }}
+                            </button>
+                        </form>
+                    @endforeach
+                </div>
+                @error('team_id')<p class="mt-2 text-xs text-red-700">{{ $message }}</p>@enderror
+            </section>
+        @endif
 
         <div class="mt-8 grid gap-5 lg:grid-cols-2">
             <section class="rounded-lg border border-stone-200 bg-white p-5 sm:p-7">

@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Task;
-use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -14,18 +13,21 @@ class TaskController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(): View
+    public function index(Request $request): View
     {
+        $user = $request->user();
+        $activeTeam = $user->teams()->whereKey(session('active_team_id'))->firstOrFail();
         $tasks = Task::with(['assignee', 'creator'])
             ->orderByRaw('due_date IS NULL')
             ->orderBy('due_date')
             ->orderByDesc('created_at')
             ->get();
-        $teamMembers = User::withCount([
+        $teamMembers = $activeTeam->users()->withCount([
             'assignedTasks as open_tasks_count' => fn ($query) => $query->where('status', '!=', 'done'),
         ])->orderBy('name')->get();
+        $userTeams = $user->teams()->orderBy('teams.name')->get(['teams.id', 'teams.name']);
 
-        return view('tasks.index', compact('tasks', 'teamMembers'));
+        return view('tasks.index', compact('activeTeam', 'tasks', 'teamMembers', 'userTeams'));
     }
 
     /**
@@ -34,7 +36,9 @@ class TaskController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate($this->taskRules());
-        $request->user()->createdTasks()->create($validated);
+        $request->user()->createdTasks()->create($validated + [
+            'team_id' => $request->session()->get('active_team_id'),
+        ]);
 
         return redirect()->route('tasks.index')->with('success', 'Task added to the team board.');
     }
@@ -42,9 +46,15 @@ class TaskController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Task $task): View
+    public function edit(Request $request, Task $task): View
     {
-        $teamMembers = User::orderBy('name')->get();
+        $teamMembers = $request->user()
+            ->teams()
+            ->whereKey($request->session()->get('active_team_id'))
+            ->firstOrFail()
+            ->users()
+            ->orderBy('name')
+            ->get();
 
         return view('tasks.edit', compact('task', 'teamMembers'));
     }
@@ -87,7 +97,11 @@ class TaskController extends Controller
             'status' => ['required', Rule::in(['todo', 'in_progress', 'done'])],
             'priority' => ['required', Rule::in(['low', 'medium', 'high'])],
             'due_date' => ['nullable', 'date'],
-            'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
+            'assigned_to' => [
+                'nullable',
+                'integer',
+                Rule::exists('team_user', 'user_id')->where('team_id', session('active_team_id')),
+            ],
         ];
     }
 }

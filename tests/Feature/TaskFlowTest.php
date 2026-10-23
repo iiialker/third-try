@@ -65,6 +65,7 @@ test('a team member can create update and delete a task', function () {
 
     $task = Task::query()->firstOrFail();
     expect($task->created_by)->toBe($creator->id)
+        ->and($task->team_id)->toBe($team->id)
         ->and($task->assigned_to)->toBe($assignee->id);
 
     $this->patch(route('tasks.status', $task), ['status' => 'in_progress'])

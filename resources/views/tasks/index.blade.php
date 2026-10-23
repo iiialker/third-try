@@ -8,6 +8,17 @@
         <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
             <a href="{{ route('tasks.index') }}" class="flex items-center gap-2.5 font-display text-lg font-extrabold tracking-tight"><span class="grid h-8 w-8 place-items-center rounded-lg bg-forest text-white">✓</span>taskflow</a>
             <div class="flex items-center gap-3">
+                <form method="POST" action="{{ route('teams.activate') }}" class="flex items-center gap-1">
+                    @csrf
+                    <label for="active-team" class="sr-only">Active team</label>
+                    <select id="active-team" name="team_id" class="max-w-28 rounded-md border border-stone-200 bg-white px-1.5 py-2 text-xs font-semibold text-stone-700 sm:max-w-40 sm:px-2">
+                        @foreach ($userTeams as $userTeam)
+                            <option value="{{ $userTeam->id }}" @selected($userTeam->id === $activeTeam->id)>{{ $userTeam->name }}</option>
+                        @endforeach
+                    </select>
+                    <button aria-label="Switch active team" class="rounded-md border border-stone-200 px-2 py-2 text-xs font-semibold text-forest hover:bg-green-50">↗</button>
+                </form>
+                <a href="{{ route('welcome') }}" class="rounded-md border border-stone-200 px-2 py-2 text-xs font-semibold text-forest hover:bg-green-50 sm:border-0 sm:px-0 sm:py-0 sm:hover:bg-transparent sm:hover:underline"><span class="sm:hidden">+</span><span class="hidden sm:inline">Manage teams</span></a>
                 <span class="hidden text-xs text-stone-500 sm:inline">{{ auth()->user()->name }}</span>
                 <span class="grid h-8 w-8 place-items-center rounded-full bg-green-100 text-[10px] font-bold text-forest">{{ str(auth()->user()->name)->initials() }}</span>
                 <form method="POST" action="{{ route('logout') }}">@csrf<button class="rounded-md border border-stone-200 px-3 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-50">Sign out</button></form>
@@ -20,7 +31,7 @@
             <div>
                 <p class="text-[10px] font-bold tracking-[.18em] text-stone-400">{{ now()->format('l, F j') }}</p>
                 <h1 class="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">A good day to <span class="text-leaf">make progress.</span></h1>
-                <p class="mt-2 text-sm text-stone-500">Here’s where your team’s work is moving.</p>
+                <p class="mt-2 text-sm text-stone-500">{{ $activeTeam->name }} · Here’s where your team’s work is moving.</p>
             </div>
             <a href="#new-task" class="inline-flex items-center justify-center gap-2 rounded-md bg-forest px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-green-900"><span class="text-lg leading-none">+</span> New task</a>
         </section>

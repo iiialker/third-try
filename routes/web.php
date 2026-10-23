@@ -22,6 +22,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/welcome', [TeamOnboardingController::class, 'show'])->name('welcome');
     Route::post('/welcome/teams', [TeamOnboardingController::class, 'store'])->middleware('throttle:5,1')->name('teams.store');
     Route::post('/welcome/join', [TeamOnboardingController::class, 'join'])->middleware('throttle:10,1')->name('teams.join');
+    Route::post('/teams/active', [TeamOnboardingController::class, 'activate'])->name('teams.activate');
 
     Route::middleware(EnsureTeamMembership::class)->group(function () {
         Route::get('/tasks', [TaskController::class, 'index'])->name('tasks.index');

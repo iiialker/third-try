@@ -92,7 +92,7 @@ test('team creation rejects passwords that do not meet the strength requirement'
     $this->assertDatabaseMissing('teams', ['name' => 'Weak Password Team']);
 });
 
-test('users without a team are redirected to onboarding and existing members cannot reopen it', function () {
+test('users without a team are redirected to onboarding and members can manage additional teams', function () {
     $user = User::factory()->create();
     $this->actingAs($user);
 
@@ -102,12 +102,17 @@ test('users without a team are redirected to onboarding and existing members can
     $team = Team::factory()->create();
     $team->users()->attach($user->id, ['role' => 'member']);
 
-    $this->get(route('welcome'))->assertRedirect(route('tasks.index'));
+    $this->get(route('welcome'))->assertOk()->assertSee('Teams you belong to');
 
     $this->post(route('teams.store'), [
         'name' => 'Another Team',
         'password' => 'team-password-123',
     ])->assertRedirect(route('tasks.index'));
 
-    $this->assertDatabaseMissing('teams', ['name' => 'Another Team']);
+    $this->assertDatabaseHas('teams', ['name' => 'Another Team']);
+    $this->assertDatabaseHas('team_user', [
+        'team_id' => Team::query()->where('name', 'Another Team')->value('id'),
+        'user_id' => $user->id,
+        'role' => 'owner',
+    ]);
 });
