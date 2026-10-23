@@ -34,7 +34,7 @@ class AuthController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->route('tasks.index');
+        return redirect()->route('welcome');
     }
 
     public function login(Request $request): RedirectResponse

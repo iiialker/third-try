@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Task;
+use App\Models\Team;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -10,7 +11,7 @@ test('guests are redirected to login before viewing the team board', function ()
     $this->get('/tasks')->assertRedirect(route('login'));
 });
 
-test('a visitor can register and reach the protected team board', function () {
+test('a visitor registers and must choose a team before reaching the protected board', function () {
     $response = $this->post(route('register.store'), [
         'name' => 'Alex Morgan',
         'email' => 'alex@example.test',
@@ -18,14 +19,23 @@ test('a visitor can register and reach the protected team board', function () {
         'password_confirmation' => 'securepassword123',
     ]);
 
-    $response->assertRedirect(route('tasks.index'));
+    $response->assertRedirect(route('welcome'));
     $this->assertAuthenticated();
     $this->assertDatabaseHas('users', ['email' => 'alex@example.test']);
+    $this->get(route('tasks.index'))->assertRedirect(route('welcome'));
+
+    $this->post(route('teams.store'), [
+        'name' => 'Alex Team',
+        'password' => 'team-password-123',
+    ])->assertRedirect(route('tasks.index'));
+
     $this->get(route('tasks.index'))->assertOk()->assertSee('Work in motion');
 });
 
 test('a registered user can sign in and sign out', function () {
     $user = User::factory()->create(['password' => 'securepassword123']);
+    $team = Team::factory()->create();
+    $team->users()->attach($user->id, ['role' => 'member']);
 
     $this->post(route('login.store'), [
         'email' => $user->email,
@@ -40,6 +50,8 @@ test('a registered user can sign in and sign out', function () {
 test('a team member can create update and delete a task', function () {
     $creator = User::factory()->create();
     $assignee = User::factory()->create();
+    $team = Team::factory()->create();
+    $team->users()->attach([$creator->id, $assignee->id], ['role' => 'member']);
     $this->actingAs($creator);
 
     $this->post(route('tasks.store'), [
@@ -74,7 +86,10 @@ test('a team member can create update and delete a task', function () {
 });
 
 test('task input rejects invalid statuses and unknown assignees', function () {
-    $this->actingAs(User::factory()->create());
+    $user = User::factory()->create();
+    $team = Team::factory()->create();
+    $team->users()->attach($user->id, ['role' => 'member']);
+    $this->actingAs($user);
 
     $this->from(route('tasks.index'))->post(route('tasks.store'), [
         'title' => 'Invalid task',
