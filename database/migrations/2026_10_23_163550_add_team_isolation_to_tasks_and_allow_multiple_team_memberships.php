@@ -33,9 +33,11 @@ return new class extends Migration
             );
         }
 
-        Schema::table('tasks', function (Blueprint $table) {
-            $table->unsignedBigInteger('team_id')->nullable();
-        });
+        if (! Schema::hasColumn('tasks', 'team_id')) {
+            Schema::table('tasks', function (Blueprint $table) {
+                $table->unsignedBigInteger('team_id')->nullable();
+            });
+        }
 
         $teamIdsByUser = DB::table('team_user')->pluck('team_id', 'user_id');
 
